@@ -5,12 +5,13 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+from googleapiclient.http import MediaIoBaseDownload
 
-import json
+from tqdm import tqdm
 
 ALL_FILE_FOLDERS = {
-    "URAP3D_STL": "1P0k67JaVkJRyFysUC_G8bKmRQQD_TKhq",
-    "CAD_PARTS_FOLDER": "1kvid8nlRhSFrnIzrZbjt5uOOuEixPBpN",
+    # "URAP3D_STL": "1P0k67JaVkJRyFysUC_G8bKmRQQD_TKhq",
+    # "CAD_PARTS_FOLDER": "1kvid8nlRhSFrnIzrZbjt5uOOuEixPBpN",
     "PARTS_0_1_3950": "1rIlKhyHHyQ55RW8igH7ywnH0hXMLDwA_",
     "PARTS_0_3951_5450": "1cKpVz3Vol2F8-i-V6ixnGkH94Al8VsjP",
     "PARTS_0_5451_9606": "1CkJ30EDPfz8g0okPQPW19vkoqzdClYg8",
@@ -31,10 +32,13 @@ BINVOX_MIMETYPE = 'application/octet-stream'
 STL_MIMETYPE = 'application/vnd.ms-pki.stl'
 FOLDER_MIMETYPE = 'application/vnd.google-apps.folder'
 
-MAX_PAGE_SIZE = 1
+MAX_PAGE_SIZE = 1000
+
+MAX_PAGES = 10000
 
 # If modifying these scopes, delete the file token.json.
-SCOPES = ['https://www.googleapis.com/auth/drive.metadata.readonly']
+SCOPES = ['https://www.googleapis.com/auth/drive.metadata.readonly',
+          'https://www.googleapis.com/auth/drive']
 
 def load_google_api_key(cwd):
     # load api key from .env
@@ -85,25 +89,57 @@ def get_files_directly_in(folderId, service, mimeType=None, nextPageToken=None):
 
     return results
 
-def get_all_files_of_type(folderId, service, mimeType):
+
+def download_all_binvox_stl_files_in(folderId, service):
+    # Assumes structure is "Binvox_files_default_res" and "rotated_files"
+    direct_files = get_files_directly_in(folderId, service)
+    binvox_folder = [f for f in direct_files.get('files', []) if f['mimeType'] == FOLDER_MIMETYPE and "Binvox" in f['name']][0]
+    stl_folder = [f for f in direct_files.get('files', []) if f['mimeType'] == FOLDER_MIMETYPE and "rotated" in f['name']][0]
+    
+    print(f"binvox folder: {binvox_folder}, stl folder: {stl_folder}")
+    
+    for binvox_file in tqdm(get_all_files_of_type(binvox_folder['id'], service, BINVOX_MIMETYPE)):
+        download_file(binvox_folder['id'], binvox_file['id'], service, BINVOX_MIMETYPE)
+    
+    for stl_file in tqdm(get_all_files_of_type(stl_folder['id'], service, STL_MIMETYPE)):
+        download_file(stl_folder['id'], stl_file['id'], service, STL_MIMETYPE)
+    
+
+def get_all_files_of_type(folderId, service, mimeType, pageLimit=MAX_PAGES):
 
     direct_files = get_files_directly_in(folderId, service)
     results = [f for f in direct_files.get('files', []) if f['mimeType'] == mimeType]
-    subfolders = [f for f in direct_files.get('files', []) if f['mimeType'] == FOLDER_MIMETYPE]
     
     i = 1
-    while ('nextPageToken' in direct_files):
-        print(f"Page {i}")
+    while ('nextPageToken' in direct_files and i < pageLimit):
+        print(f"Page {i} for {folderId}")
         direct_files = get_files_directly_in(folderId, service, nextPageToken=direct_files['nextPageToken'])
         results += [f for f in direct_files.get('files', []) if f['mimeType'] == mimeType]
-        subfolders += [f for f in direct_files.get('files', []) if f['mimeType'] == FOLDER_MIMETYPE]
         
         i += 1
         
-    for subfolder in subfolders:
-        results += get_all_files_of_type(subfolder['id'], service, mimeType)
         
     return results
+
+def download_file(folder_id, file_id, service, mimeType):
+    str_type = ""
+    if mimeType == BINVOX_MIMETYPE:
+        str_type = "binvox"
+    elif mimeType == STL_MIMETYPE:
+        str_type = "stl"
+        
+    path = os.path.join("data", str_type, folder_id)
+    
+    if not os.path.exists(path):
+        os.makedirs(path)
+    request = service.files().get_media(fileId=file_id)
+    with open(os.path.join(path, file_id), "wb") as f:
+        downloader = MediaIoBaseDownload(f, request)
+        done = False
+        while not done:
+            status, done = downloader.next_chunk()
+            # print("Download %d%%." % int(status.progress() * 100))
+
 
 def main():
     """Shows basic usage of the Drive v3 API.
@@ -115,11 +151,16 @@ def main():
 
     try:
         service = build('drive', 'v3', credentials=creds)
-        items = get_all_files_of_type(ALL_FILE_FOLDERS["PARTS_1_1_2500"], service, BINVOX_MIMETYPE)
+        # items = get_all_files_of_type(ALL_FILE_FOLDERS["PARTS_1_1_2500"], service, BINVOX_MIMETYPE)
         
-        print('Files:')
-        for item in items:
-            print(u'{0} ({1})'.format(item['name'], item['id']))
+        for folder in ALL_FILE_FOLDERS.keys():
+            print(f"Starting {folder}")
+            download_all_binvox_stl_files_in(ALL_FILE_FOLDERS[folder], service)
+            print(f"Done with {folder}")
+        
+        # print('Files:')
+        # for item in items:
+        #     print(u'{0} ({1})'.format(item['name'], item['id']))
 
     except HttpError as error:
         # TODO(developer) - Handle errors from drive API.
