@@ -11,7 +11,8 @@ from googleapiclient.http import MediaIoBaseDownload
 
 from tqdm import tqdm
 
-import multiprocessing as mp
+# import istarmap # import to apply patch
+from multiprocessing import Pool
 import threading
 
 ALL_FILE_FOLDERS = {
@@ -39,7 +40,9 @@ FOLDER_MIMETYPE = 'application/vnd.google-apps.folder'
 
 ENTRIES_PER_PAGE = 1000 
 
-MAX_PAGES = 1 # how many pages to go until stopping, set to 1 for testing
+MAX_PAGES = 1000 # how many pages to go per folder, set to 1 for testing
+
+NUM_THREADS = 60 # just put the max that works?? i don't know what number is maximum, but can find by doubling
 
 # If modifying these scopes, delete the file token.json.
 SCOPES = ['https://www.googleapis.com/auth/drive.metadata.readonly',
@@ -103,11 +106,22 @@ def download_all_binvox_stl_files_in(folderId, service):
     
     print(f"binvox folder: {binvox_folder}, stl folder: {stl_folder}")
     
-    for binvox_file in tqdm(get_all_files_of_type(binvox_folder['id'], service, BINVOX_MIMETYPE)):
-        download_file(binvox_folder['id'], binvox_file['id'], service, BINVOX_MIMETYPE)
+    # for binvox_file in tqdm(get_all_files_of_type(binvox_folder['id'], service, BINVOX_MIMETYPE)):
+    #     download_file(binvox_folder['id'], binvox_file['id'], service, BINVOX_MIMETYPE)
+        
+    # for stl_file in tqdm(get_all_files_of_type(stl_folder['id'], service, STL_MIMETYPE)):
+    #     download_file(stl_folder['id'], stl_file['id'], service, STL_MIMETYPE)
     
-    for stl_file in tqdm(get_all_files_of_type(stl_folder['id'], service, STL_MIMETYPE)):
-        download_file(stl_folder['id'], stl_file['id'], service, STL_MIMETYPE)
+    
+    # use multiprocessing to parallelize the above loops
+    with Pool(NUM_THREADS) as p:
+        binvox_iter = [(binvox_folder['id'], binvox_file['id'], service, BINVOX_MIMETYPE) for binvox_file in get_all_files_of_type(binvox_folder['id'], service, BINVOX_MIMETYPE)]
+        stl_iter = [(stl_folder['id'], stl_file['id'], service, STL_MIMETYPE) for stl_file in get_all_files_of_type(stl_folder['id'], service, STL_MIMETYPE)]
+        
+        all_iter = binvox_iter + stl_iter
+        p.starmap(download_file, tqdm(all_iter))
+        
+    
     
 
 def get_all_files_of_type(folderId, service, mimeType, pageLimit=MAX_PAGES):
@@ -158,16 +172,16 @@ def main():
         service = build('drive', 'v3', credentials=creds)
         # items = get_all_files_of_type(ALL_FILE_FOLDERS["PARTS_1_1_2500"], service, BINVOX_MIMETYPE)
         
-        # for folder in ALL_FILE_FOLDERS.keys():
-        #     print(f"Starting {folder}")
-        #     download_all_binvox_stl_files_in(ALL_FILE_FOLDERS[folder], service)
-        #     print(f"Done with {folder}")
+        for folder in ALL_FILE_FOLDERS.keys():
+            print(f"Starting {folder}")
+            download_all_binvox_stl_files_in(ALL_FILE_FOLDERS[folder], service)
+            print(f"Done with {folder}")
             
             
         # use multiprocessing to parallelize the above loop
         
-        with mp.Pool(8) as p:
-            p.starmap(download_all_binvox_stl_files_in, [(ALL_FILE_FOLDERS[folder], service) for folder in ALL_FILE_FOLDERS.keys()])
+        # with Pool(NUM_THREADS) as p:
+        #     p.starmap(download_all_binvox_stl_files_in, [(ALL_FILE_FOLDERS[folder], service) for folder in ALL_FILE_FOLDERS.keys()])
         
         # print('Files:')
         # for item in items:
