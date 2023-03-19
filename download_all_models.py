@@ -1,5 +1,7 @@
 import os.path
 
+import cython
+
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -8,6 +10,9 @@ from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaIoBaseDownload
 
 from tqdm import tqdm
+
+import multiprocessing as mp
+import threading
 
 ALL_FILE_FOLDERS = {
     # "URAP3D_STL": "1P0k67JaVkJRyFysUC_G8bKmRQQD_TKhq",
@@ -32,9 +37,9 @@ BINVOX_MIMETYPE = 'application/octet-stream'
 STL_MIMETYPE = 'application/vnd.ms-pki.stl'
 FOLDER_MIMETYPE = 'application/vnd.google-apps.folder'
 
-MAX_PAGE_SIZE = 1000
+ENTRIES_PER_PAGE = 1000 
 
-MAX_PAGES = 10000
+MAX_PAGES = 1 # how many pages to go until stopping, set to 1 for testing
 
 # If modifying these scopes, delete the file token.json.
 SCOPES = ['https://www.googleapis.com/auth/drive.metadata.readonly',
@@ -80,7 +85,7 @@ def get_files_directly_in(folderId, service, mimeType=None, nextPageToken=None):
     results = []
     try:
         results = service.files().list(
-            pageSize=MAX_PAGE_SIZE,
+            pageSize=ENTRIES_PER_PAGE,
             q=query,
             fields="nextPageToken, files(id, name, mimeType)",
             pageToken=nextPageToken).execute()
@@ -153,10 +158,16 @@ def main():
         service = build('drive', 'v3', credentials=creds)
         # items = get_all_files_of_type(ALL_FILE_FOLDERS["PARTS_1_1_2500"], service, BINVOX_MIMETYPE)
         
-        for folder in ALL_FILE_FOLDERS.keys():
-            print(f"Starting {folder}")
-            download_all_binvox_stl_files_in(ALL_FILE_FOLDERS[folder], service)
-            print(f"Done with {folder}")
+        # for folder in ALL_FILE_FOLDERS.keys():
+        #     print(f"Starting {folder}")
+        #     download_all_binvox_stl_files_in(ALL_FILE_FOLDERS[folder], service)
+        #     print(f"Done with {folder}")
+            
+            
+        # use multiprocessing to parallelize the above loop
+        
+        with mp.Pool(8) as p:
+            p.starmap(download_all_binvox_stl_files_in, [(ALL_FILE_FOLDERS[folder], service) for folder in ALL_FILE_FOLDERS.keys()])
         
         # print('Files:')
         # for item in items:
