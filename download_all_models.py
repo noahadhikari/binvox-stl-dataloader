@@ -1,7 +1,5 @@
 import os.path
 
-import cython
-
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -11,9 +9,7 @@ from googleapiclient.http import MediaIoBaseDownload
 
 from tqdm import tqdm
 
-# import istarmap # import to apply patch
 from multiprocessing import Pool
-import threading
 
 ALL_FILE_FOLDERS = {
     # "URAP3D_STL": "1P0k67JaVkJRyFysUC_G8bKmRQQD_TKhq",
@@ -42,7 +38,7 @@ ENTRIES_PER_PAGE = 1000
 
 MAX_PAGES = 1000 # how many pages to go per folder, set to 1 for testing
 
-NUM_THREADS = 60 # just put the max that works?? i don't know what number is maximum, but can find by doubling
+NUM_THREADS = 60 # just put the max that works?? don't know what number is maximum for a given architecture, but can find by doubling
 
 # If modifying these scopes, delete the file token.json.
 SCOPES = ['https://www.googleapis.com/auth/drive.metadata.readonly',
