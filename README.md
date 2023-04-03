@@ -41,8 +41,16 @@ and the following to Authorized redirect URIs:
 - http://localhost
 - http://localhost:8080/
 
+### Modifying scopes
 
+After successfully running `quickstart.py`, delete `token.json` and you should be able to run `download_all_models.py`. This will update the token to have download-access (the quickstart only allows read access).
 
 ### Python dependencies
 - tqdm
 - google-api-client
+
+The google package should be installed after running the quickstart. To install tqdm, run
+```
+pip install tqdm
+```
+from the command line.
