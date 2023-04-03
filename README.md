@@ -10,7 +10,7 @@ All of the folders to be downloaded are located in the Python dictionary `ALL_FI
 
 Assumes the binvox folder contains the string "Binvox" and the stl folder contains the string "rotated".
 
-You'll also need to have a `.env` file in your root directory set up as follows:
+You'll also need to create a `.env` file in your root directory set up as follows (ignoring the braces):
 
 ```
 GOOGLE_API_KEY = {your api key here}
@@ -18,9 +18,13 @@ GOOGLE_API_KEY = {your api key here}
 
 ### Acquiring Google credentials
 
-To acquire this key, go to `console.cloud.google.com/` and go to "APIs and Services". Enable the Google Drive API and then go to Credentials and enable an API key for Google Drive.
+Follow the steps in the quickstart here and see if you can get `quickstart.py` working: https://developers.google.com/drive/api/quickstart/python
 
-Follow the quickstart here and see if you can get `quickstart.py` working: https://developers.google.com/drive/api/quickstart/python
+This will set up the environment expected for `download_all_models.py`.
+
+NOTE: You may need to do the following steps before `quickstart.py` will work.
+
+Change the port on the line `creds = flow.run_local_server(port=0)` to be `port=8080` instead of `port=0`. Then do the following.
 
 You'll also need to create an OAuth client ID and add the following to its Authorized JavaScript origins (unsure of how many of these are necessary):
 - http://localhost
@@ -32,6 +36,8 @@ and the following to Authorized redirect URIs:
 - https://model-rating.vercel.app/api/auth/callback/google
 - http://localhost
 - http://localhost:8080/
+
+
 
 ### Python dependencies
 - tqdm
