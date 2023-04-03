@@ -36,7 +36,7 @@ FOLDER_MIMETYPE = 'application/vnd.google-apps.folder'
 
 ENTRIES_PER_PAGE = 1000 
 
-MAX_PAGES = 1000 # how many pages to go per folder, set to 1 for testing
+MAX_PAGES = 1 # how many pages to go per folder, set to 1 for testing
 
 NUM_THREADS = 60 # just put the max that works?? don't know what number is maximum for a given architecture, but can find by doubling
 
@@ -148,7 +148,7 @@ def download_file(folder_id, file_id, service, mimeType):
     if not os.path.exists(path):
         os.makedirs(path)
     request = service.files().get_media(fileId=file_id)
-    with open(os.path.join(path, file_id), "wb") as f:
+    with open(os.path.join(path, f"{file_id}.{str_type}"), "wb") as f:
         downloader = MediaIoBaseDownload(f, request)
         done = False
         while not done:
