@@ -14,7 +14,7 @@ If on Windows, you will need to install [Git Bash](https://gitforwindows.org/).
 
 To begin, open Git Bash, `cd` into whatever folder you'd like to clone the repository and run `git clone https://github.com/noahadhikari/binvox-stl-dataloader.git`. Open this folder in VSCode or a similar editor.
 
-You'll also need to edit the `.env` file in your root directory appropriately (ignoring the braces):
+You'll also need to create a `.env` file in your root directory and copy-paste from the `.env-template` file (ignoring the braces):
 
 ```
 GOOGLE_API_KEY = {your api key here}
