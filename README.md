@@ -1,6 +1,8 @@
 # binvox-stl-dataloader
 
-To begin, run `git clone https://github.com/noahadhikari/binvox-stl-dataloader.git` from wherever you'd like to clone the repository.
+If on Windows, you will need to install [Git Bash](https://gitforwindows.org/).
+
+To begin, open Git Bash, `cd` into whatever folder you'd like to clone the repository and run `git clone https://github.com/noahadhikari/binvox-stl-dataloader.git`. Open this folder in VSCode or a similar editor.
 
 The download script for the folders is `download_all_models.py` and for the ratings is `get_all_ratings.py`.
 
