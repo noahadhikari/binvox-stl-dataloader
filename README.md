@@ -1,14 +1,18 @@
 # binvox-stl-dataloader
 
-If on Windows, you will need to install [Git Bash](https://gitforwindows.org/).
-
-To begin, open Git Bash, `cd` into whatever folder you'd like to clone the repository and run `git clone https://github.com/noahadhikari/binvox-stl-dataloader.git`. Open this folder in VSCode or a similar editor.
+## Description
 
 The download script for the folders is `download_all_models.py` and for the ratings is `get_all_ratings.py`.
 
 All of the folders to be downloaded are located in the Python dictionary `ALL_FILE_FOLDERS`. Add additional folders with their folderIds to download them. Please try to name the key appropriately if possible, and feel free to comment out the ones that have already been downloaded.
 
 Assumes the binvox folder contains the string "Binvox" and the stl folder contains the string "rotated".
+
+## Setup
+
+If on Windows, you will need to install [Git Bash](https://gitforwindows.org/).
+
+To begin, open Git Bash, `cd` into whatever folder you'd like to clone the repository and run `git clone https://github.com/noahadhikari/binvox-stl-dataloader.git`. Open this folder in VSCode or a similar editor.
 
 You'll also need to edit the `.env` file in your root directory appropriately (ignoring the braces):
 
