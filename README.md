@@ -28,9 +28,9 @@ This will set up the environment expected for `download_all_models.py`.
 
 NOTE: You may need to do the following steps before `quickstart.py` will work.
 
-Change the port on the line `creds = flow.run_local_server(port=0)` to be `port=8080` instead of `port=0`. Then do the following.
+Change the port on the line `creds = flow.run_local_server(port=0)` to be `port=8080` instead of `port=0`. Then do the following:
 
-You'll also need to create an OAuth client ID and add the following to its Authorized JavaScript origins (unsure of how many of these are necessary):
+Create an OAuth client ID for Web Application and add the following to its Authorized JavaScript origins (unsure of how many of these are necessary):
 - http://localhost
 - https://model-rating.vercel.app
 - http://localhost:8080
@@ -41,8 +41,16 @@ and the following to Authorized redirect URIs:
 - http://localhost
 - http://localhost:8080/
 
+### Modifying scopes
 
+After successfully running `quickstart.py`, delete `token.json` and you should be able to run `download_all_models.py`. This will update the token to have download-access (the quickstart only allows read access).
 
 ### Python dependencies
 - tqdm
 - google-api-client
+
+The google package should be installed after running the quickstart. To install tqdm, run
+```
+pip install tqdm
+```
+from the command line.
