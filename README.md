@@ -10,7 +10,7 @@ All of the folders to be downloaded are located in the Python dictionary `ALL_FI
 
 Assumes the binvox folder contains the string "Binvox" and the stl folder contains the string "rotated".
 
-You'll also need to create a `.env` file in your root directory set up as follows (ignoring the braces):
+You'll also need to edit the `.env` file in your root directory appropriately (ignoring the braces):
 
 ```
 GOOGLE_API_KEY = {your api key here}
