@@ -1,5 +1,7 @@
 # binvox-stl-dataloader
 
+To begin, run `git clone https://github.com/noahadhikari/binvox-stl-dataloader.git` from wherever you'd like to clone the repository.
+
 The download script for the folders is `download_all_models.py` and for the ratings is `get_all_ratings.py`.
 
 All of the folders to be downloaded are located in the Python dictionary `ALL_FILE_FOLDERS`. Add additional folders with their folderIds to download them. Please try to name the key appropriately if possible, and feel free to comment out the ones that have already been downloaded.
