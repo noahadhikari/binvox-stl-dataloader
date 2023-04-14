@@ -1,4 +1,5 @@
 import os.path
+import asyncio
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
@@ -9,14 +10,18 @@ from googleapiclient.http import MediaIoBaseDownload
 
 from tqdm import tqdm
 
-from multiprocessing import Pool
+# from multiprocessing import Pool
+from aiomultiprocess import Pool
+
+
+from prisma import Prisma
 
 ALL_FILE_FOLDERS = {
     # "URAP3D_STL": "1P0k67JaVkJRyFysUC_G8bKmRQQD_TKhq",
     # "CAD_PARTS_FOLDER": "1kvid8nlRhSFrnIzrZbjt5uOOuEixPBpN",
-    "PARTS_0_1_3950": "1rIlKhyHHyQ55RW8igH7ywnH0hXMLDwA_",
-    "PARTS_0_3951_5450": "1cKpVz3Vol2F8-i-V6ixnGkH94Al8VsjP",
-    "PARTS_0_5451_9606": "1CkJ30EDPfz8g0okPQPW19vkoqzdClYg8",
+    # "PARTS_0_1_3950": "1rIlKhyHHyQ55RW8igH7ywnH0hXMLDwA_",
+    # "PARTS_0_3951_5450": "1cKpVz3Vol2F8-i-V6ixnGkH94Al8VsjP",
+    # "PARTS_0_5451_9606": "1CkJ30EDPfz8g0okPQPW19vkoqzdClYg8",
     "PARTS_1_1_2500": "1j_J4PxkVZlfP7kqhP4JwyUG29bYVLbNJ",
     "PARTS_1_2501_7500": "155SmkUlp2Z8nVb_VjUgoTNPRMO1jl9gQ",
     "PARTS_1_7501_11227": "1ZtDlxIVOq_B6gbryrtXZTQXJpv3bodEv",
@@ -34,15 +39,17 @@ BINVOX_MIMETYPE = 'application/octet-stream'
 STL_MIMETYPE = 'application/vnd.ms-pki.stl'
 FOLDER_MIMETYPE = 'application/vnd.google-apps.folder'
 
-ENTRIES_PER_PAGE = 1000 
+ENTRIES_PER_PAGE = 10 # how many entries to get per page, max is 1000
 
 MAX_PAGES = 1 # how many pages to go per folder, set to 1 for testing
 
-NUM_THREADS = 60 # just put the max that works?? don't know what number is maximum for a given architecture, but can find by doubling
+NUM_THREADS = 1 # just put the max that works?? don't know what number is maximum for a given architecture, but can find by doubling
 
 # If modifying these scopes, delete the file token.json.
 SCOPES = ['https://www.googleapis.com/auth/drive.metadata.readonly',
           'https://www.googleapis.com/auth/drive']
+
+DB = Prisma()
 
 def load_google_api_key(cwd):
     # load api key from .env
@@ -94,13 +101,13 @@ def get_files_directly_in(folderId, service, mimeType=None, nextPageToken=None):
     return results
 
 
-def download_all_binvox_stl_files_in(folderId, service):
-    # Assumes structure is "Binvox_files_default_res" and "rotated_files"
+async def download_all_binvox_stl_files_in(folderId, service):
+    # NOTE: Assumes structure is "Binvox_files_default_res" and "rotated_files"
     direct_files = get_files_directly_in(folderId, service)
     binvox_folder = [f for f in direct_files.get('files', []) if f['mimeType'] == FOLDER_MIMETYPE and "Binvox" in f['name']][0]
     stl_folder = [f for f in direct_files.get('files', []) if f['mimeType'] == FOLDER_MIMETYPE and "rotated" in f['name']][0]
     
-    print(f"binvox folder: {binvox_folder}, stl folder: {stl_folder}")
+    # print(f"binvox folder: {binvox_folder}, stl folder: {stl_folder}")
     
     # for binvox_file in tqdm(get_all_files_of_type(binvox_folder['id'], service, BINVOX_MIMETYPE)):
     #     download_file(binvox_folder['id'], binvox_file['id'], service, BINVOX_MIMETYPE)
@@ -110,15 +117,25 @@ def download_all_binvox_stl_files_in(folderId, service):
     
     
     # use multiprocessing to parallelize the above loops
-    with Pool(NUM_THREADS) as p:
-        binvox_iter = [(binvox_folder['id'], binvox_file['id'], service, BINVOX_MIMETYPE) for binvox_file in get_all_files_of_type(binvox_folder['id'], service, BINVOX_MIMETYPE)]
-        stl_iter = [(stl_folder['id'], stl_file['id'], service, STL_MIMETYPE) for stl_file in get_all_files_of_type(stl_folder['id'], service, STL_MIMETYPE)]
+    async with Pool(NUM_THREADS) as p:
+        binvox_iter = [(folderId, binvox_file['id'], service, BINVOX_MIMETYPE) for binvox_file in get_all_files_of_type(binvox_folder['id'], service, BINVOX_MIMETYPE)]
+        stl_iter = [(folderId, stl_file['id'], service, STL_MIMETYPE) for stl_file in get_all_files_of_type(stl_folder['id'], service, STL_MIMETYPE)]
         
         all_iter = binvox_iter + stl_iter
-        p.starmap(download_file, tqdm(all_iter))
         
-    
-    
+        
+        
+        await p.starmap(process, tqdm(all_iter))
+        
+async def process(*args):
+        db = Prisma()
+        await db.connect()
+        await download_file(args)
+        await db.disconnect()
+        
+        # put all of the things above into one coroutine
+        
+        
 
 def get_all_files_of_type(folderId, service, mimeType, pageLimit=MAX_PAGES):
 
@@ -136,31 +153,35 @@ def get_all_files_of_type(folderId, service, mimeType, pageLimit=MAX_PAGES):
         
     return results
 
-def download_file(folder_id, file_id, service, mimeType):
-    str_type = ""
+async def get_model_id_from(file_id, file_type):
+    return await DB.model.find_unique(where={f'{file_type}Id': file_id})
+    
+
+async def download_file(parent_folder_id, file_id, service, mimeType):
     if mimeType == BINVOX_MIMETYPE:
-        str_type = "binvox"
+        file_type = "binvox"
     elif mimeType == STL_MIMETYPE:
-        str_type = "stl"
+        file_type = "stl"
         
-    path = os.path.join("data", str_type, folder_id)
+    path = os.path.join("data", file_type, parent_folder_id)
     
     if not os.path.exists(path):
         os.makedirs(path)
     request = service.files().get_media(fileId=file_id)
-    with open(os.path.join(path, f"{file_id}.{str_type}"), "wb") as f:
+    
+    model_id = await get_model_id_from(file_id, file_type)
+    print(model_id)
+    
+    with open(os.path.join(path, f"{model_id}.{file_type}"), "wb") as f:
         downloader = MediaIoBaseDownload(f, request)
         done = False
         while not done:
             status, done = downloader.next_chunk()
             # print("Download %d%%." % int(status.progress() * 100))
 
+        
 
-def main():
-    """Shows basic usage of the Drive v3 API.
-    Prints the names and ids of the first 10 files the user has access to.
-    """
-
+async def main():
     os.chdir(os.path.dirname(__file__))
     creds = token_login()
 
@@ -168,10 +189,11 @@ def main():
         service = build('drive', 'v3', credentials=creds)
         # items = get_all_files_of_type(ALL_FILE_FOLDERS["PARTS_1_1_2500"], service, BINVOX_MIMETYPE)
         
+        # await DB.connect()
+        
         for folder in ALL_FILE_FOLDERS.keys():
             print(f"Starting {folder}")
-            download_all_binvox_stl_files_in(ALL_FILE_FOLDERS[folder], service)
-            print(f"Done with {folder}")
+            await download_all_binvox_stl_files_in(ALL_FILE_FOLDERS[folder], service)
             
             
         # use multiprocessing to parallelize the above loop
@@ -189,4 +211,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    asyncio.run(main())

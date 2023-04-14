@@ -5,7 +5,11 @@
 **/*.stl
 **/*.binvox
 data
-
+node_modules
+package-lock.json
+venv
+.idea
+prisma/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
